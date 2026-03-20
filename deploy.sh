@@ -4,6 +4,7 @@ set -euo pipefail
 PROJECT_ID="${PROJECT_ID:-soggy-stitches}"
 REGION="${REGION:-us-east1}"
 SERVICE_NAME="${SERVICE_NAME:-soggy-admin-backend}"
+SECRET_PROJECT_ID="${SECRET_PROJECT_ID:-$PROJECT_ID}"
 
 PRODUCTS_PUBLIC_BUCKET="${PRODUCTS_PUBLIC_BUCKET:-soggy-products}"
 PRODUCTS_PRIVATE_BUCKET="${PRODUCTS_PRIVATE_BUCKET:-soggy-privates}"
@@ -18,7 +19,18 @@ DB_SOCKET_PATH="${DB_SOCKET_PATH:-/cloudsql}"
 DB_POOL_MAX="${DB_POOL_MAX:-5}"
 DB_IDLE_TIMEOUT_MS="${DB_IDLE_TIMEOUT_MS:-30000}"
 DB_CONNECTION_TIMEOUT_MS="${DB_CONNECTION_TIMEOUT_MS:-10000}"
+DB_USER="${DB_USER:-}"
+DB_PASS="${DB_PASS:-}"
+DB_NAME="${DB_NAME:-}"
 INSTANCE_CONNECTION_NAME="${INSTANCE_CONNECTION_NAME:-}"
+DB_USER_SECRET_NAME="${DB_USER_SECRET_NAME:-DB_USER}"
+DB_PASS_SECRET_NAME="${DB_PASS_SECRET_NAME:-DB_PASS}"
+DB_NAME_SECRET_NAME="${DB_NAME_SECRET_NAME:-DB_NAME}"
+INSTANCE_CONNECTION_NAME_SECRET_NAME="${INSTANCE_CONNECTION_NAME_SECRET_NAME:-INSTANCE_CONNECTION_NAME}"
+DB_USER_SECRET_VERSION="${DB_USER_SECRET_VERSION:-latest}"
+DB_PASS_SECRET_VERSION="${DB_PASS_SECRET_VERSION:-latest}"
+DB_NAME_SECRET_VERSION="${DB_NAME_SECRET_VERSION:-latest}"
+INSTANCE_CONNECTION_NAME_SECRET_VERSION="${INSTANCE_CONNECTION_NAME_SECRET_VERSION:-latest}"
 
 ALLOW_UNAUTHENTICATED="${ALLOW_UNAUTHENTICATED:-false}"
 ENABLE_REQUIRED_APIS="${ENABLE_REQUIRED_APIS:-true}"
@@ -29,9 +41,45 @@ ENABLE_REQUIRED_APIS="${ENABLE_REQUIRED_APIS:-true}"
 RUNTIME_SERVICE_ACCOUNT="${RUNTIME_SERVICE_ACCOUNT:-}"
 INVOKER_SERVICE_ACCOUNT="${INVOKER_SERVICE_ACCOUNT:-}"
 
-: "${DB_USER:?Set DB_USER}"
-: "${DB_PASS:?Set DB_PASS}"
-: "${DB_NAME:?Set DB_NAME}"
+read_secret_value() {
+  local secret_name="${1}"
+  local secret_version="${2}"
+
+  gcloud secrets versions access "${secret_version}" \
+    --secret="${secret_name}" \
+    --project="${SECRET_PROJECT_ID}"
+}
+
+add_secret_mapping() {
+  local env_name="${1}"
+  local secret_name="${2}"
+  local secret_version="${3}"
+
+  SECRET_VARS+=("${env_name}=${secret_name}:${secret_version}")
+}
+
+SECRET_VARS=()
+
+if [[ -n "${DB_USER}" ]]; then
+  echo "Ignoring literal DB_USER because this deploy reads DB credentials from Secret Manager." >&2
+fi
+add_secret_mapping "DB_USER" "${DB_USER_SECRET_NAME}" "${DB_USER_SECRET_VERSION}"
+
+if [[ -n "${DB_PASS}" ]]; then
+  echo "Ignoring literal DB_PASS because this deploy reads DB credentials from Secret Manager." >&2
+fi
+add_secret_mapping "DB_PASS" "${DB_PASS_SECRET_NAME}" "${DB_PASS_SECRET_VERSION}"
+
+if [[ -n "${DB_NAME}" ]]; then
+  echo "Ignoring literal DB_NAME because this deploy reads DB credentials from Secret Manager." >&2
+fi
+add_secret_mapping "DB_NAME" "${DB_NAME_SECRET_NAME}" "${DB_NAME_SECRET_VERSION}"
+
+if [[ -z "${INSTANCE_CONNECTION_NAME}" && -z "${DB_HOST}" ]]; then
+  INSTANCE_CONNECTION_NAME="$(
+    read_secret_value "${INSTANCE_CONNECTION_NAME_SECRET_NAME}" "${INSTANCE_CONNECTION_NAME_SECRET_VERSION}"
+  )"
+fi
 
 if [[ -z "${INSTANCE_CONNECTION_NAME}" && -z "${DB_HOST}" ]]; then
   echo "Set either INSTANCE_CONNECTION_NAME (recommended) or DB_HOST." >&2
@@ -43,6 +91,7 @@ if [[ "${ENABLE_REQUIRED_APIS}" == "true" ]]; then
     run.googleapis.com \
     cloudbuild.googleapis.com \
     artifactregistry.googleapis.com \
+    secretmanager.googleapis.com \
     --project="${PROJECT_ID}"
 fi
 
@@ -93,6 +142,10 @@ fi
 
 if [[ -n "${INSTANCE_CONNECTION_NAME}" ]]; then
   DEPLOY_ARGS+=("--add-cloudsql-instances=${INSTANCE_CONNECTION_NAME}")
+fi
+
+if [[ ${#SECRET_VARS[@]} -gt 0 ]]; then
+  DEPLOY_ARGS+=("--update-secrets=$(IFS=,; echo "${SECRET_VARS[*]}")")
 fi
 
 gcloud "${DEPLOY_ARGS[@]}"

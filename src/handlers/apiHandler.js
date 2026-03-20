@@ -36,6 +36,16 @@ function isAdminCommissionsRequest(req) {
   );
 }
 
+function isHealthRequest(req) {
+  const path = normalizePath(req);
+  return (
+    path === "/healthz" ||
+    path === "/healthz/" ||
+    path === "/api/healthz" ||
+    path === "/api/healthz/"
+  );
+}
+
 function createApiHandler({
   adminCommissionsHandler,
   adminProductImageHandler,
@@ -43,6 +53,21 @@ function createApiHandler({
 }) {
   return async function api(req, res) {
     try {
+      if (isHealthRequest(req)) {
+        if (req.method === "HEAD") {
+          return res.status(204).send();
+        }
+
+        if (!req.method || req.method === "GET") {
+          return res.status(200).json({
+            ok: true,
+            service: "soggy-admin-backend"
+          });
+        }
+
+        return res.status(405).json({ error: "Method not allowed" });
+      }
+
       if (isAdminProductImageRequest(req)) {
         return adminProductImageHandler(req, res);
       }
@@ -57,7 +82,7 @@ function createApiHandler({
 
       return res.status(404).json({
         error:
-          "Route not found. Use /admin/products, /admin/products/image, or /admin/commissions"
+          "Route not found. Use /healthz, /admin/products, /admin/products/image, or /admin/commissions"
       });
     } catch (error) {
       console.error("Unhandled API routing error", {

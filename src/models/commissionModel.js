@@ -17,6 +17,7 @@ function buildCommissionSelectClause() {
       signed_url_expires_at,
       prepared_at,
       status,
+      commitment_deposit_amount,
       time_cost,
       ship_date,
       total_cost,
@@ -115,6 +116,12 @@ async function updateCommissionById(pool, commission) {
     parameterIndex += 1;
   }
 
+  if (commission.hasCommitmentDepositAmount) {
+    assignments.push(`commitment_deposit_amount = $${parameterIndex}`);
+    values.push(commission.commitmentDepositAmount);
+    parameterIndex += 1;
+  }
+
   if (commission.hasStatus) {
     assignments.push(`status = $${parameterIndex}`);
     values.push(commission.status);
@@ -149,6 +156,7 @@ async function updateCommissionById(pool, commission) {
         signed_url_expires_at,
         prepared_at,
         status,
+        commitment_deposit_amount,
         time_cost,
         ship_date,
         total_cost,

@@ -186,15 +186,26 @@ function normalizeUpdateCommissionRequest(body) {
   const hasTimeCost = Object.prototype.hasOwnProperty.call(body, "time_cost");
   const hasShipDate = Object.prototype.hasOwnProperty.call(body, "ship_date");
   const hasTotalCost = Object.prototype.hasOwnProperty.call(body, "total_cost");
+  const hasCommitmentDepositAmount = Object.prototype.hasOwnProperty.call(
+    body,
+    "commitment_deposit_amount"
+  );
   const hasStatus = Object.prototype.hasOwnProperty.call(body, "status");
   const hasRequiresCommit = Object.prototype.hasOwnProperty.call(
     body,
     "requires_commit"
   );
 
-  if (!hasTimeCost && !hasShipDate && !hasTotalCost && !hasStatus && !hasRequiresCommit) {
+  if (
+    !hasTimeCost &&
+    !hasShipDate &&
+    !hasTotalCost &&
+    !hasCommitmentDepositAmount &&
+    !hasStatus &&
+    !hasRequiresCommit
+  ) {
     throw withStatusError(
-      "At least one of time_cost, ship_date, total_cost, status, or requires_commit is required",
+      "At least one of time_cost, ship_date, total_cost, commitment_deposit_amount, status, or requires_commit is required",
       400
     );
   }
@@ -204,6 +215,7 @@ function normalizeUpdateCommissionRequest(body) {
     hasTimeCost,
     hasShipDate,
     hasTotalCost,
+    hasCommitmentDepositAmount,
     hasStatus,
     hasRequiresCommit,
     timeCost: hasTimeCost
@@ -214,6 +226,12 @@ function normalizeUpdateCommissionRequest(body) {
       : undefined,
     totalCost: hasTotalCost
       ? readNullableNonNegativeInteger(body.total_cost, "total_cost")
+      : undefined,
+    commitmentDepositAmount: hasCommitmentDepositAmount
+      ? readNullableNonNegativeInteger(
+          body.commitment_deposit_amount,
+          "commitment_deposit_amount"
+        )
       : undefined,
     status: hasStatus ? readNonEmptyString(body.status, "status") : undefined,
     requiresCommit: hasRequiresCommit
@@ -273,6 +291,7 @@ function mapCommissionResponse(commission) {
     signed_url_expires_at: toIsoString(commission.signed_url_expires_at),
     prepared_at: toIsoString(commission.prepared_at),
     status: commission.status,
+    commitment_deposit_amount: commission.commitment_deposit_amount,
     time_cost: commission.time_cost,
     ship_date: toDateOnlyString(commission.ship_date),
     total_cost: commission.total_cost,

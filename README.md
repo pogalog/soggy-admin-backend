@@ -4,6 +4,7 @@ Node.js HTTP service for admin workflows on Cloud Run.
 
 ## Routes
 
+- `GET /healthz`
 - `GET /admin/commissions`
 - `POST /admin/commissions`
 - `DELETE /admin/commissions`
@@ -11,6 +12,23 @@ Node.js HTTP service for admin workflows on Cloud Run.
 - `POST /admin/products`
 - `DELETE /admin/products`
 - `POST /admin/products/image`
+
+## `GET /healthz`
+
+Cheap liveness endpoint for warm-up and monitoring.
+
+Responses:
+
+- `200` with a small JSON payload when the service is up
+
+Example response:
+
+```json
+{
+  "ok": true,
+  "service": "soggy-admin-backend"
+}
+```
 
 ## `GET /admin/commissions`
 
@@ -161,7 +179,7 @@ Response (`200`):
       "title": "Leggy Frog",
       "description": "A very long frog",
       "sell_price_cents": 4200,
-      "inventory_qty": 7,
+      "days_to_create": 1.5,
       "image_urls": [
         "https://cdn.example.com/leggy_frog/leggy-frog-watermarked.jpg"
       ],
@@ -190,7 +208,7 @@ Request body (`application/json`):
   "title": "Leggy Frog",
   "description": "A very long frog",
   "sell_price_cents": 4200,
-  "inventory_qty": 7
+  "days_to_create": 1.5
 }
 ```
 
@@ -199,7 +217,7 @@ Response:
 - `201` when a new product is created
 - `200` when an existing product is updated
 
-If the product id already exists, `title`, `description`, `sell_price_cents`, and `inventory_qty` are overwritten, `updated_at` is refreshed, and `created_at` is preserved.
+If the product id already exists, `title`, `description`, `sell_price_cents`, and `days_to_create` are overwritten, `updated_at` is refreshed, and `created_at` is preserved.
 
 Example response:
 
@@ -210,7 +228,7 @@ Example response:
     "title": "Leggy Frog",
     "description": "A very long frog",
     "sell_price_cents": 4200,
-    "inventory_qty": 7,
+    "days_to_create": 1.5,
     "image_urls": [],
     "created_at": "2026-03-05T15:01:02.123Z",
     "updated_at": "2026-03-05T15:01:02.123Z"
@@ -307,18 +325,42 @@ npm start
 
 Required deploy env vars:
 
-- `DB_USER`
-- `DB_PASS`
-- `DB_NAME`
-- and either `INSTANCE_CONNECTION_NAME` or `DB_HOST`
+- either `INSTANCE_CONNECTION_NAME` or `DB_HOST`
+
+By default, `deploy.sh` now reads these from Secret Manager when you do not pass them directly:
+
+- `DB_USER` from secret `DB_USER`
+- `DB_PASS` from secret `DB_PASS`
+- `DB_NAME` from secret `DB_NAME`
+- `INSTANCE_CONNECTION_NAME` from secret `INSTANCE_CONNECTION_NAME`
+
+Optional overrides:
+
+- `SECRET_PROJECT_ID` default: `PROJECT_ID`
+- `DB_USER_SECRET_NAME`
+- `DB_PASS_SECRET_NAME`
+- `DB_NAME_SECRET_NAME`
+- `INSTANCE_CONNECTION_NAME_SECRET_NAME`
+- `DB_USER_SECRET_VERSION` default: `latest`
+- `DB_PASS_SECRET_VERSION` default: `latest`
+- `DB_NAME_SECRET_VERSION` default: `latest`
+- `INSTANCE_CONNECTION_NAME_SECRET_VERSION` default: `latest`
+
+The Cloud Run runtime service account must have access to any secrets injected into the service environment.
 
 Example:
 
 ```bash
-DB_USER=postgres \
-DB_PASS=changeme \
-DB_NAME=products_db \
-INSTANCE_CONNECTION_NAME=soggy-stitches:us-east1:products-db \
 INVOKER_SERVICE_ACCOUNT=bruno-invoker@soggy-stitches.iam.gserviceaccount.com \
+./deploy.sh
+```
+
+If your secret names differ from the defaults:
+
+```bash
+DB_USER_SECRET_NAME=prod-db-user \
+DB_PASS_SECRET_NAME=prod-db-pass \
+DB_NAME_SECRET_NAME=prod-db-name \
+INSTANCE_CONNECTION_NAME_SECRET_NAME=prod-instance-connection-name \
 ./deploy.sh
 ```
