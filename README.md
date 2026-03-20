@@ -4,10 +4,162 @@ Node.js HTTP service for admin workflows on Cloud Run.
 
 ## Routes
 
+- `GET /healthz`
+- `GET /admin/commissions`
+- `POST /admin/commissions`
+- `DELETE /admin/commissions`
 - `GET /admin/products`
 - `POST /admin/products`
 - `DELETE /admin/products`
 - `POST /admin/products/image`
+
+## `GET /healthz`
+
+Cheap liveness endpoint for warm-up and monitoring.
+
+Responses:
+
+- `200` with a small JSON payload when the service is up
+
+Example response:
+
+```json
+{
+  "ok": true,
+  "service": "soggy-admin-backend"
+}
+```
+
+## `GET /admin/commissions`
+
+Returns commission rows from Postgres. If no query params are provided, all rows are returned.
+
+Optional query params:
+
+- `id`
+- `submission_key`
+- `item_name`
+- `yarn_type`
+- `yarn_color`
+- `attachment_material_type`
+- `status`
+
+Filter behavior:
+
+- Each provided query param is applied as an additional filter
+- `status=open` returns all rows where `status <> 'closed'`
+- `status=closed` matches only rows where `status = 'closed'`
+- Any other `status` value is matched exactly
+
+Responses:
+
+- `200` with matching rows
+- `204` when no rows match after filtering
+
+Example:
+
+```bash
+curl "http://localhost:8080/admin/commissions?status=open&yarn_type=chenille"
+```
+
+Example response:
+
+```json
+{
+  "commissions": [
+    {
+      "id": "cm_01jnk4rjv4w8d7j8f7j8t9v2g1",
+      "submission_key": "d5d30497-1d65-4f93-b7af-7674d9ef7cb7",
+      "item_name": "Pastel dragon plush",
+      "item_description": "A medium-sized crochet dragon in mint green with cream accents.",
+      "yarn_type": "chenille",
+      "yarn_color": "#7ed6c2",
+      "attachment_material_type": "yarn-only",
+      "storage_bucket": "soggy-commissions",
+      "upload_directory": "2026/03/02/pastel-dragon-plush",
+      "storage_images": [],
+      "meta_path": "2026/03/02/pastel-dragon-plush/meta.json",
+      "signed_url_expires_at": "2026-03-02T18:25:00.000Z",
+      "prepared_at": "2026-03-02T18:15:00.000Z",
+      "status": "received",
+      "time_cost": 14,
+      "ship_date": "2026-03-21",
+      "total_cost": 8500,
+      "requires_commit": true,
+      "created_at": "2026-03-05T15:01:02.123Z",
+      "updated_at": "2026-03-09T18:44:55.000Z"
+    }
+  ]
+}
+```
+
+## `POST /admin/commissions`
+
+Updates an existing commission row by id. This endpoint never inserts.
+
+Request body (`application/json`):
+
+```json
+{
+  "id": "cm_01jnk4rjv4w8d7j8f7j8t9v2g1",
+  "time_cost": 14,
+  "ship_date": "2026-03-21",
+  "total_cost": 8500,
+  "status": "quoted",
+  "requires_commit": true
+}
+```
+
+## `DELETE /admin/commissions`
+
+Deletes a commission row by id.
+
+Required query params:
+
+- `commissionId`: the commission id to delete
+
+Responses:
+
+- `204` when the commission is deleted
+- `404` when no matching commission exists
+- `400` when `commissionId` is missing
+
+Example:
+
+```bash
+curl -X DELETE "http://localhost:8080/admin/commissions?commissionId=cm_01jnk4rjv4w8d7j8f7j8t9v2g1"
+```
+
+Notes:
+
+- `id` is required
+- At least one of `time_cost`, `ship_date`, `total_cost`, `status`, or `requires_commit` must be present
+- `time_cost` and `total_cost` accept non-negative integers or `null`
+- `ship_date` accepts a `YYYY-MM-DD` string or `null`
+- `status` accepts a non-empty string
+- `requires_commit` accepts a boolean
+
+Responses:
+
+- `200` when the commission is updated
+- `404` when no matching commission exists
+
+Example response:
+
+```json
+{
+  "commission": {
+    "id": "cm_01jnk4rjv4w8d7j8f7j8t9v2g1",
+    "status": "received",
+    "time_cost": 14,
+    "ship_date": "2026-03-21",
+    "total_cost": 8500,
+    "requires_commit": true,
+    "created_at": "2026-03-05T15:01:02.123Z",
+    "updated_at": "2026-03-09T18:44:55.000Z"
+  }
+}
+```
 
 ## `GET /admin/products`
 
@@ -27,7 +179,7 @@ Response (`200`):
       "title": "Leggy Frog",
       "description": "A very long frog",
       "sell_price_cents": 4200,
-      "inventory_qty": 7,
+      "days_to_create": 1.5,
       "image_urls": [
         "https://cdn.example.com/leggy_frog/leggy-frog-watermarked.jpg"
       ],
@@ -56,7 +208,7 @@ Request body (`application/json`):
   "title": "Leggy Frog",
   "description": "A very long frog",
   "sell_price_cents": 4200,
-  "inventory_qty": 7
+  "days_to_create": 1.5
 }
 ```
 
@@ -65,7 +217,7 @@ Response:
 - `201` when a new product is created
 - `200` when an existing product is updated
 
-If the product id already exists, `title`, `description`, `sell_price_cents`, and `inventory_qty` are overwritten, `updated_at` is refreshed, and `created_at` is preserved.
+If the product id already exists, `title`, `description`, `sell_price_cents`, and `days_to_create` are overwritten, `updated_at` is refreshed, and `created_at` is preserved.
 
 Example response:
 
@@ -76,7 +228,7 @@ Example response:
     "title": "Leggy Frog",
     "description": "A very long frog",
     "sell_price_cents": 4200,
-    "inventory_qty": 7,
+    "days_to_create": 1.5,
     "image_urls": [],
     "created_at": "2026-03-05T15:01:02.123Z",
     "updated_at": "2026-03-05T15:01:02.123Z"
@@ -173,18 +325,42 @@ npm start
 
 Required deploy env vars:
 
-- `DB_USER`
-- `DB_PASS`
-- `DB_NAME`
-- and either `INSTANCE_CONNECTION_NAME` or `DB_HOST`
+- either `INSTANCE_CONNECTION_NAME` or `DB_HOST`
+
+By default, `deploy.sh` now reads these from Secret Manager when you do not pass them directly:
+
+- `DB_USER` from secret `DB_USER`
+- `DB_PASS` from secret `DB_PASS`
+- `DB_NAME` from secret `DB_NAME`
+- `INSTANCE_CONNECTION_NAME` from secret `INSTANCE_CONNECTION_NAME`
+
+Optional overrides:
+
+- `SECRET_PROJECT_ID` default: `PROJECT_ID`
+- `DB_USER_SECRET_NAME`
+- `DB_PASS_SECRET_NAME`
+- `DB_NAME_SECRET_NAME`
+- `INSTANCE_CONNECTION_NAME_SECRET_NAME`
+- `DB_USER_SECRET_VERSION` default: `latest`
+- `DB_PASS_SECRET_VERSION` default: `latest`
+- `DB_NAME_SECRET_VERSION` default: `latest`
+- `INSTANCE_CONNECTION_NAME_SECRET_VERSION` default: `latest`
+
+The Cloud Run runtime service account must have access to any secrets injected into the service environment.
 
 Example:
 
 ```bash
-DB_USER=postgres \
-DB_PASS=changeme \
-DB_NAME=products_db \
-INSTANCE_CONNECTION_NAME=soggy-stitches:us-east1:products-db \
 INVOKER_SERVICE_ACCOUNT=bruno-invoker@soggy-stitches.iam.gserviceaccount.com \
+./deploy.sh
+```
+
+If your secret names differ from the defaults:
+
+```bash
+DB_USER_SECRET_NAME=prod-db-user \
+DB_PASS_SECRET_NAME=prod-db-pass \
+DB_NAME_SECRET_NAME=prod-db-name \
+INSTANCE_CONNECTION_NAME_SECRET_NAME=prod-instance-connection-name \
 ./deploy.sh
 ```

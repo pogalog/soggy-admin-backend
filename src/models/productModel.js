@@ -7,7 +7,7 @@ function buildProductSelectClause() {
       p.title,
       p.description,
       p.sell_price_cents,
-      p.inventory_qty,
+      p.days_to_create,
       p.created_at,
       p.updated_at,
       images.image_urls
@@ -56,7 +56,7 @@ async function upsertProduct(pool, product) {
         title,
         description,
         sell_price_cents,
-        inventory_qty,
+        days_to_create,
         created_at,
         updated_at
       )
@@ -66,14 +66,14 @@ async function upsertProduct(pool, product) {
         title = EXCLUDED.title,
         description = EXCLUDED.description,
         sell_price_cents = EXCLUDED.sell_price_cents,
-        inventory_qty = EXCLUDED.inventory_qty,
+        days_to_create = EXCLUDED.days_to_create,
         updated_at = NOW()
       RETURNING
         id,
         title,
         description,
         sell_price_cents,
-        inventory_qty,
+        days_to_create,
         created_at,
         updated_at,
         (xmax = 0) AS inserted
@@ -83,7 +83,7 @@ async function upsertProduct(pool, product) {
       saved_product.title,
       saved_product.description,
       saved_product.sell_price_cents,
-      saved_product.inventory_qty,
+      saved_product.days_to_create,
       saved_product.created_at,
       saved_product.updated_at,
       saved_product.inserted,
@@ -104,7 +104,7 @@ async function upsertProduct(pool, product) {
     product.title,
     product.description,
     product.sellPriceCents,
-    product.inventoryQty
+    product.daysToCreate
   ];
 
   const result = await pool.query(query, values);

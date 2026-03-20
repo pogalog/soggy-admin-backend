@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS products (
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   sell_price_cents INTEGER NOT NULL CHECK (sell_price_cents >= 0),
-  inventory_qty INTEGER NOT NULL CHECK (inventory_qty >= 0),
+  days_to_create NUMERIC(8,2) NOT NULL CHECK (days_to_create >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

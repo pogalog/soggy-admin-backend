@@ -69,6 +69,14 @@ function readNonNegativeInteger(value, fieldName) {
   return parsed;
 }
 
+function readNonNegativeNumber(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw withStatusError(`${fieldName} must be a non-negative number`, 400);
+  }
+  return parsed;
+}
+
 function normalizeCreateProductRequest(body) {
   if (!body || typeof body !== "object") {
     throw withStatusError("Request body must be a JSON object", 400);
@@ -82,7 +90,7 @@ function normalizeCreateProductRequest(body) {
       body.sell_price_cents,
       "sell_price_cents"
     ),
-    inventoryQty: readNonNegativeInteger(body.inventory_qty, "inventory_qty")
+    daysToCreate: readNonNegativeNumber(body.days_to_create, "days_to_create")
   };
 }
 
@@ -97,7 +105,7 @@ function mapProductResponse(product) {
     title: product.title,
     description: product.description,
     sell_price_cents: product.sell_price_cents,
-    inventory_qty: product.inventory_qty,
+    days_to_create: Number(product.days_to_create),
     image_urls: Array.isArray(product.image_urls) ? product.image_urls : [],
     created_at: product.created_at,
     updated_at: product.updated_at
