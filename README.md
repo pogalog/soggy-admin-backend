@@ -11,6 +11,7 @@ Node.js HTTP service for admin workflows on Cloud Run.
 - `GET /admin/products`
 - `POST /admin/products`
 - `DELETE /admin/products`
+- `POST /admin/markets`
 - `POST /admin/products/image`
 
 ## `GET /healthz`
@@ -254,6 +255,68 @@ Example:
 
 ```bash
 curl -X DELETE "http://localhost:8080/admin/products?productId=leggy_frog"
+```
+
+## `POST /admin/markets`
+
+Creates or updates a market row using the public `markets` table columns:
+`street_address`, `city`, `state`, `start_time`, `end_time`, `title`,
+`description`, and `link`.
+
+Request body (`application/json`):
+
+```json
+{
+  "title": "Soggy Spring Craft Market",
+  "street_address": "123 River Rd",
+  "city": "Richmond",
+  "state": "VA",
+  "start_time": "2026-05-16T10:00:00-04:00",
+  "end_time": "2026-05-16T16:00:00-04:00",
+  "description": "Outdoor booth by the fountain.",
+  "link": "https://example.com/events/soggy-spring-craft-market"
+}
+```
+
+Notes:
+
+- `title`, `street_address`, `city`, `state`, and `start_time` are required
+- `end_time`, `description`, and `link` may be `null`
+- `start_time` and `end_time` must be ISO 8601 timestamps with a timezone offset
+- `end_time` must be greater than or equal to `start_time` when provided
+- `camelCase` aliases are also accepted for `streetAddress`, `startTime`, and `endTime`
+- Past events are not inserted or updated
+
+Match behavior:
+
+- First tries an exact match on `title + street_address + city + state + start_time`
+- If that fails, it tries a same-day match on `title + street_address + city + state`
+- If no match is found and the event is not in the past, a new row is inserted
+- If multiple rows match ambiguously, the endpoint returns `409`
+
+Responses:
+
+- `201` when a new row is created
+- `200` when an existing row is updated, unchanged, or skipped because it is in the past
+- `409` when multiple rows match and the service cannot safely determine which row to update
+
+Example response:
+
+```json
+{
+  "action": "updated",
+  "matched_on": "same_day_identity",
+  "market": {
+    "street_address": "123 River Rd",
+    "city": "Richmond",
+    "state": "VA",
+    "start_time": "2026-05-16T14:00:00.000Z",
+    "end_time": "2026-05-16T20:00:00.000Z",
+    "title": "Soggy Spring Craft Market",
+    "description": "Outdoor booth by the fountain.",
+    "link": "https://example.com/events/soggy-spring-craft-market"
+  }
+}
 ```
 
 ## `POST /admin/products/image`

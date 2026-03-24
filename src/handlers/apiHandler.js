@@ -36,6 +36,16 @@ function isAdminCommissionsRequest(req) {
   );
 }
 
+function isAdminMarketsRequest(req) {
+  const path = normalizePath(req);
+  return (
+    path === "/admin/markets" ||
+    path === "/admin/markets/" ||
+    path === "/api/admin/markets" ||
+    path === "/api/admin/markets/"
+  );
+}
+
 function isHealthRequest(req) {
   const path = normalizePath(req);
   return (
@@ -48,6 +58,7 @@ function isHealthRequest(req) {
 
 function createApiHandler({
   adminCommissionsHandler,
+  adminMarketsHandler,
   adminProductImageHandler,
   adminProductsHandler
 }) {
@@ -76,13 +87,17 @@ function createApiHandler({
         return adminProductsHandler(req, res);
       }
 
+      if (isAdminMarketsRequest(req)) {
+        return adminMarketsHandler(req, res);
+      }
+
       if (isAdminCommissionsRequest(req)) {
         return adminCommissionsHandler(req, res);
       }
 
       return res.status(404).json({
         error:
-          "Route not found. Use /healthz, /admin/products, /admin/products/image, or /admin/commissions"
+          "Route not found. Use /healthz, /admin/products, /admin/products/image, /admin/markets, or /admin/commissions"
       });
     } catch (error) {
       console.error("Unhandled API routing error", {
