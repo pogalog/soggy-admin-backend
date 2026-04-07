@@ -26,6 +26,16 @@ function isAdminProductsRequest(req) {
   );
 }
 
+function isAdminProductSafetyRequest(req) {
+  const path = normalizePath(req);
+  return (
+    path === "/admin/products/safety" ||
+    path === "/admin/products/safety/" ||
+    path === "/api/admin/products/safety" ||
+    path === "/api/admin/products/safety/"
+  );
+}
+
 function isAdminCommissionsRequest(req) {
   const path = normalizePath(req);
   return (
@@ -33,6 +43,16 @@ function isAdminCommissionsRequest(req) {
     path === "/admin/commissions/" ||
     path === "/api/admin/commissions" ||
     path === "/api/admin/commissions/"
+  );
+}
+
+function isAdminOrdersRequest(req) {
+  const path = normalizePath(req);
+  return (
+    path === "/admin/orders" ||
+    path === "/admin/orders/" ||
+    path === "/api/admin/orders" ||
+    path === "/api/admin/orders/"
   );
 }
 
@@ -59,6 +79,8 @@ function isHealthRequest(req) {
 function createApiHandler({
   adminCommissionsHandler,
   adminMarketsHandler,
+  adminOrdersHandler,
+  adminProductSafetyHandler,
   adminProductImageHandler,
   adminProductsHandler
 }) {
@@ -83,8 +105,16 @@ function createApiHandler({
         return adminProductImageHandler(req, res);
       }
 
+      if (isAdminProductSafetyRequest(req)) {
+        return adminProductSafetyHandler(req, res);
+      }
+
       if (isAdminProductsRequest(req)) {
         return adminProductsHandler(req, res);
+      }
+
+      if (isAdminOrdersRequest(req)) {
+        return adminOrdersHandler(req, res);
       }
 
       if (isAdminMarketsRequest(req)) {
@@ -97,7 +127,7 @@ function createApiHandler({
 
       return res.status(404).json({
         error:
-          "Route not found. Use /healthz, /admin/products, /admin/products/image, /admin/markets, or /admin/commissions"
+          "Route not found. Use /healthz, /admin/products, /admin/products/safety, /admin/products/image, /admin/orders, /admin/markets, or /admin/commissions"
       });
     } catch (error) {
       console.error("Unhandled API routing error", {
