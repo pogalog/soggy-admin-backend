@@ -181,6 +181,10 @@ Response (`200`):
       "description": "A very long frog",
       "sell_price_cents": 4200,
       "days_to_create": 1.5,
+      "weight": 8,
+      "length": 6.5,
+      "width": 4,
+      "height": 3.25,
       "image_urls": [
         "https://cdn.example.com/leggy_frog/leggy-frog-watermarked.jpg"
       ],
@@ -209,7 +213,11 @@ Request body (`application/json`):
   "title": "Leggy Frog",
   "description": "A very long frog",
   "sell_price_cents": 4200,
-  "days_to_create": 1.5
+  "days_to_create": 1.5,
+  "weight": 8,
+  "length": 6.5,
+  "width": 4,
+  "height": 3.25
 }
 ```
 
@@ -218,7 +226,7 @@ Response:
 - `201` when a new product is created
 - `200` when an existing product is updated
 
-If the product id already exists, `title`, `description`, `sell_price_cents`, and `days_to_create` are overwritten, `updated_at` is refreshed, and `created_at` is preserved.
+If the product id already exists, `title`, `description`, `sell_price_cents`, `days_to_create`, `weight`, `length`, `width`, and `height` are overwritten, `updated_at` is refreshed, and `created_at` is preserved.
 
 Example response:
 
@@ -230,6 +238,10 @@ Example response:
     "description": "A very long frog",
     "sell_price_cents": 4200,
     "days_to_create": 1.5,
+    "weight": 8,
+    "length": 6.5,
+    "width": 4,
+    "height": 3.25,
     "image_urls": [],
     "created_at": "2026-03-05T15:01:02.123Z",
     "updated_at": "2026-03-05T15:01:02.123Z"

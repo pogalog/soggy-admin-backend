@@ -77,6 +77,73 @@ function readNonNegativeNumber(value, fieldName) {
   return parsed;
 }
 
+function readOptionalPositiveInteger(value, fieldName) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw withStatusError(`${fieldName} must be a positive integer`, 400);
+  }
+
+  return parsed;
+}
+
+function readOptionalNonNegativeNumber(value, fieldName) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === "string" && value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw withStatusError(`${fieldName} must be a non-negative number`, 400);
+  }
+
+  return parsed;
+}
+
+function readOptionalProductMeasurement(body, fieldName) {
+  const legacyFieldNames = {
+    weight: "shipping_weight_lbs",
+    length: "shipping_length_in",
+    width: "shipping_width_in",
+    height: "shipping_height_in"
+  };
+  const legacyFieldName = legacyFieldNames[fieldName];
+
+  if (!body || typeof body !== "object") {
+    return null;
+  }
+
+  function normalizeMeasurementValue(value, sourceFieldName) {
+    const parsed = readOptionalNonNegativeNumber(value, sourceFieldName);
+    return parsed === 0 ? null : parsed;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, fieldName)) {
+    return normalizeMeasurementValue(body[fieldName], fieldName);
+  }
+
+  if (legacyFieldName && Object.prototype.hasOwnProperty.call(body, legacyFieldName)) {
+    return normalizeMeasurementValue(body[legacyFieldName], legacyFieldName);
+  }
+
+  if (body.dimensions && typeof body.dimensions === "object") {
+    return normalizeMeasurementValue(body.dimensions[fieldName], fieldName);
+  }
+
+  return null;
+}
+
 function normalizeCreateProductRequest(body) {
   if (!body || typeof body !== "object") {
     throw withStatusError("Request body must be a JSON object", 400);
@@ -90,7 +157,12 @@ function normalizeCreateProductRequest(body) {
       body.sell_price_cents,
       "sell_price_cents"
     ),
-    daysToCreate: readNonNegativeNumber(body.days_to_create, "days_to_create")
+    daysToCreate: readNonNegativeNumber(body.days_to_create, "days_to_create"),
+    safetyId: readOptionalPositiveInteger(body.safety_id, "safety_id"),
+    weight: readOptionalProductMeasurement(body, "weight"),
+    length: readOptionalProductMeasurement(body, "length"),
+    width: readOptionalProductMeasurement(body, "width"),
+    height: readOptionalProductMeasurement(body, "height")
   };
 }
 
@@ -100,12 +172,22 @@ function methodNotAllowed(res) {
 }
 
 function mapProductResponse(product) {
+  function mapOptionalNumber(value) {
+    return value === null || value === undefined ? null : Number(value);
+  }
+
   return {
     id: product.id,
     title: product.title,
     description: product.description,
     sell_price_cents: product.sell_price_cents,
     days_to_create: Number(product.days_to_create),
+    safety_id: product.safety_id === null || product.safety_id === undefined ? null : String(product.safety_id),
+    safety_name: product.safety_name || null,
+    weight: mapOptionalNumber(product.weight),
+    length: mapOptionalNumber(product.length),
+    width: mapOptionalNumber(product.width),
+    height: mapOptionalNumber(product.height),
     image_urls: Array.isArray(product.image_urls) ? product.image_urls : [],
     created_at: product.created_at,
     updated_at: product.updated_at
@@ -175,14 +257,20 @@ function createAdminProductsHandler({ getPool }) {
         .status(product.inserted ? 201 : 200)
         .json({ product: mapProductResponse(product) });
     } catch (error) {
-      const statusCode = Number.isInteger(error.statusCode) ? error.statusCode : 500;
+      const invalidSafetyReference = error && error.code === "23503";
+      const statusCode = invalidSafetyReference
+        ? 400
+        : Number.isInteger(error.statusCode)
+          ? error.statusCode
+          : 500;
+      const message = invalidSafetyReference ? "Invalid safety_id" : error.message;
       console.error("adminProductsHandler error", {
-        message: error.message,
+        message,
         statusCode
       });
 
       return res.status(statusCode).json({
-        error: statusCode === 500 ? "Internal server error" : error.message
+        error: statusCode === 500 ? "Internal server error" : message
       });
     }
   };
